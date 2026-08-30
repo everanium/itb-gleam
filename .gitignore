@@ -1,0 +1,9 @@
+# Gleam build output
+build/
+
+# Compiled BEAM artefacts
+*.beam
+*.ez
+
+# Erlang crash dumps
+erl_crash.dump

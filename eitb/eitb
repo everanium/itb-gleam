@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# eitb -- launcher for the itb_eitb command-line demonstrator.
+# Runs the compiled dev-profile module directly under erl with the
+# build's code paths, preserving the caller's working directory so
+# relative file arguments resolve as typed; build the binding first
+# (./build.sh in bindings/gleam).
+#
+# Usage:
+#   eitb version
+#   eitb hashes
+#   eitb encrypt <profile> <in-file> <out-file>
+#   eitb decrypt <profile> <blob-hex> <in-file> <out-file>
+
+set -eu
+set -o pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [ ! -d "$ROOT/build/dev/erlang/itb_gleam/ebin" ]; then
+    echo "eitb: binding not built (build/dev/erlang/itb_gleam missing); run ./build.sh first" >&2
+    exit 1
+fi
+
+PA=()
+for ebin in "$ROOT"/build/dev/erlang/*/ebin; do
+    PA+=(-pa "$ebin")
+done
+
+# itb_eitb:main/0 reads the plain arguments after -extra and halts
+# with the subcommand's exit code.
+exec erl -noshell "${PA[@]}" -eval 'itb_eitb:main()' -extra "$@"

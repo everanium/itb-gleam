@@ -1,0 +1,22 @@
+name = "itb_gleam"
+version = "0.3.0"
+target = "erlang"
+gleam = ">= 1.11.0"
+description = "ITB Gleam binding - thin proxy over the ITB Erlang binding via BEAM bytecode interop"
+licences = ["MIT"]
+
+# The Erlang binding (bindings/erlang) is the backend: a standard OTP
+# application built by rebar3, carrying the only native code in the
+# BEAM stack (the NIF shim over libitb.so). rebar3 applications are
+# not Gleam packages, so the backend cannot appear under
+# [dependencies]; instead the FFI adapter (src/itb_gleam_ffi.erl)
+# adds the backend's ebin directory to the code path at first use —
+# ../erlang/_build/default/lib/itb/ebin relative to this project, or
+# the ITB_ERLANG_EBIN environment variable when set. ./build.sh
+# builds the backend before compiling this project.
+
+[dependencies]
+gleam_stdlib = ">= 1.0.0 and < 2.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"
