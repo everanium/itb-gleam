@@ -69,18 +69,29 @@ fn pair(profile: String) -> #(Pipeline, Pipeline) {
 pub fn message_round_trip_test() {
   let #(sender, receiver) = pair("singlemsg-triple-mac-v1")
   let payloads = [
-    <<>>,
     <<0>>,
     <<"any text or binary data":utf8>>,
     rand_bytes(100_000),
   ]
   list.each(payloads, fn(plain) {
     let assert Ok(wire) = pipeline.encrypt_message(sender, plain)
-    assert plain == <<>> || wire != plain
+    assert wire != plain
     let assert Ok(back) = pipeline.decrypt_message(receiver, wire)
     assert back == plain
   })
   pipeline.free(receiver)
+  pipeline.free(sender)
+}
+
+pub fn empty_payload_rejected_test() {
+  // Go core rejects zero-length plaintext uniformly with ErrEmptyInput
+  // -> ItbError("bad_input", _) before any wire is produced. An empty
+  // message has no cover story: it is always distinguishable at some
+  // layer (wire length, timing, traffic count). Callers for whom an
+  // empty signal is meaningful send a marker byte instead.
+  let assert Ok(sender) = pipeline.new("singlemsg-triple-mac-v1", [])
+  let assert Error(ItbError("bad_input", _)) =
+    pipeline.encrypt_message(sender, <<>>)
   pipeline.free(sender)
 }
 
