@@ -1,5 +1,5 @@
 name = "itb_gleam"
-version = "0.3.4"
+version = "0.3.5"
 target = "erlang"
 gleam = ">= 1.11.0"
 description = "ITB Gleam binding - thin proxy over the ITB Erlang binding via BEAM bytecode interop"
