@@ -16,46 +16,70 @@ import itb_gleam.{type ItbError, type Opts}
 pub type Pipeline
 
 /// Constructs a fresh Pipeline against the named profile. Opts may
-/// be the empty list for pure profile defaults.
+/// be the empty list for pure profile defaults. The session blob is
+/// available through `save`.
 @external(erlang, "itb_gleam_ffi", "init")
 pub fn new(profile: String, opts: Opts) -> Result(Pipeline, ItbError)
 
-/// Reconstructs a Pipeline from a blob produced by a sender's
-/// `new` / `rekey`, using the blob-embedded masters.
-pub fn open(
-  profile: String,
-  blob: BitArray,
-  opts: Opts,
-) -> Result(Pipeline, ItbError) {
-  open_with_masters(profile, blob, opts, <<>>, <<>>)
+/// Reconstructs a Pipeline from a blob produced by `save` / `rekey`,
+/// using the blob-embedded masters. The blob's embedded profile
+/// record is the sole structural source — no profile name, no opts.
+pub fn load(blob: BitArray) -> Result(Pipeline, ItbError) {
+  load_with_masters(blob, <<>>, <<>>)
 }
 
-/// As `open` with explicit master overrides. Both masters must be
-/// supplied non-empty (a half-supplied pair is rejected); pass
+/// As `load` with explicit master overrides. Both masters must be
+/// supplied (a half-supplied pair is rejected Go-side); pass
 /// `<<>>` / `<<>>` for the blob-embedded masters.
-@external(erlang, "itb_gleam_ffi", "open")
-pub fn open_with_masters(
-  profile: String,
+@external(erlang, "itb_gleam_ffi", "load")
+pub fn load_with_masters(
   blob: BitArray,
-  opts: Opts,
   perm_master: BitArray,
   wrap_master: BitArray,
 ) -> Result(Pipeline, ItbError)
 
-/// The exported session-bundle blob for the receiver side; refreshed
-/// by `rekey`.
-@external(erlang, "itb_gleam_ffi", "blob")
-pub fn blob(pipeline: Pipeline) -> Result(BitArray, ItbError)
+/// `load` for a blob stored in a file; the file is read inside the
+/// library.
+pub fn load_f(path: String) -> Result(Pipeline, ItbError) {
+  load_f_with_masters(path, <<>>, <<>>)
+}
 
-/// Rotates the parallax + wrapper masters and refreshes the blob.
-/// Must not run concurrently with cipher calls or open stream
-/// sessions on the same Pipeline.
+/// As `load_f` with explicit master overrides.
+@external(erlang, "itb_gleam_ffi", "load_f")
+pub fn load_f_with_masters(
+  path: String,
+  perm_master: BitArray,
+  wrap_master: BitArray,
+) -> Result(Pipeline, ItbError)
+
+/// The current serialised session blob — the bytes `new` produced,
+/// the bytes `load` re-marshalled, or the bytes of the latest
+/// `rekey`.
+@external(erlang, "itb_gleam_ffi", "save")
+pub fn save(pipeline: Pipeline) -> Result(BitArray, ItbError)
+
+/// Writes the current session blob to `path` inside the library
+/// (mode 0600; the containing directory must exist).
+@external(erlang, "itb_gleam_ffi", "save_f")
+pub fn save_f(pipeline: Pipeline, path: String) -> Result(Nil, ItbError)
+
+/// Sets the worker cap for every subsequent cipher call. `n` is
+/// clamped, never rejected: `n <= 0` selects auto, `1..256` pins the
+/// cap, larger values are treated as 256. The cap is per-machine
+/// tuning and is never written to the blob.
+@external(erlang, "itb_gleam_ffi", "max_workers")
+pub fn max_workers(pipeline: Pipeline, n: Int) -> Result(Nil, ItbError)
+
+/// Rotates the parallax + wrapper masters and returns the refreshed
+/// session blob (also observable through `save`). Must not run
+/// concurrently with cipher calls or open stream sessions on the
+/// same Pipeline.
 @external(erlang, "itb_gleam_ffi", "rekey")
 pub fn rekey(
   pipeline: Pipeline,
   perm_master: BitArray,
   wrap_master: BitArray,
-) -> Result(Nil, ItbError)
+) -> Result(BitArray, ItbError)
 
 /// Eagerly closes (zeroing key material Go-side) and releases the
 /// handle. Idempotent; subsequent calls on the handle fail with

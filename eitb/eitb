@@ -8,7 +8,8 @@
 #
 # Usage:
 #   eitb version
-#   eitb hashes
+#   eitb profiles
+#   eitb inspect <blob-hex>
 #   eitb encrypt <profile> <in-file> <out-file>
 #   eitb decrypt <profile> <blob-hex> <in-file> <out-file>
 

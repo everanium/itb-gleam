@@ -24,14 +24,16 @@
 
 -module(itb_gleam_ffi).
 
--export([init/2, open/5, blob/1, rekey/3, free/1,
+-export([init/2, load/3, load_f/3, save/1, save_f/2, max_workers/2,
+         rekey/3, free/1,
          encrypt_message/2, decrypt_message/2,
          encrypt_stream_one_shot/2, decrypt_stream_one_shot/2,
          encrypt_stream/1, decrypt_stream/1,
          stream_write/2, stream_end/1, stream_read/2, stream_free/1,
-         register_profile/2, version/0, hashes/0, last_error/0,
+         inspect/1, register/2, lookup/1, profiles/0,
+         version/0, last_error/0,
          set_memory_limit/1, set_gc_percent/1,
-         env/2, now_us/0, read_file/1, write_file/2,
+         env/2, now_us/0, read_file/1, write_file/2, delete_file/1,
          hex_encode/1, hex_decode/1, argv/0, flip_byte/2]).
 
 %% ------------------------------------------------------------------
@@ -42,12 +44,22 @@ init(Profile, Opts) ->
     ok = ensure_itb(),
     norm(itb:init(Profile, Opts)).
 
-open(Profile, Blob, Opts, PermMaster, WrapMaster) ->
+load(Blob, PermMaster, WrapMaster) ->
     ok = ensure_itb(),
-    norm(itb:open(Profile, Blob, Opts, PermMaster, WrapMaster)).
+    norm(itb:load(Blob, PermMaster, WrapMaster)).
 
-blob(Pipeline) ->
-    norm(itb:blob(Pipeline)).
+load_f(Path, PermMaster, WrapMaster) ->
+    ok = ensure_itb(),
+    norm(itb:load_f(Path, PermMaster, WrapMaster)).
+
+save(Pipeline) ->
+    norm(itb:save(Pipeline)).
+
+save_f(Pipeline, Path) ->
+    norm(itb:save_f(Pipeline, Path)).
+
+max_workers(Pipeline, N) ->
+    norm(itb:max_workers(Pipeline, N)).
 
 rekey(Pipeline, PermMaster, WrapMaster) ->
     norm(itb:rekey(Pipeline, PermMaster, WrapMaster)).
@@ -106,17 +118,31 @@ stream_free(Stream) ->
 %% Profile registration / runtime / diagnostics
 %% ------------------------------------------------------------------
 
-register_profile(Name, Opts) ->
+%% The profile record crosses as JSON text on the Gleam side (the
+%% Gleam stdlib carries no JSON codec); the Erlang backend hands the
+%% record over as a map, re-encoded here with the OTP json module.
+inspect(Blob) ->
     ok = ensure_itb(),
-    norm(itb:register_profile(Name, Opts)).
+    json_text(itb:inspect(Blob)).
+
+register(Name, ProfileJson) ->
+    ok = ensure_itb(),
+    norm(itb:register(Name, ProfileJson)).
+
+lookup(Name) ->
+    ok = ensure_itb(),
+    json_text(itb:lookup(Name)).
+
+profiles() ->
+    ok = ensure_itb(),
+    itb:profiles().
+
+json_text({ok, Record}) -> {ok, iolist_to_binary(json:encode(Record))};
+json_text({error, Reason}) -> {error, err(Reason)}.
 
 version() ->
     ok = ensure_itb(),
     norm(itb:version()).
-
-hashes() ->
-    ok = ensure_itb(),
-    itb:hashes().
 
 last_error() ->
     ok = ensure_itb(),
@@ -154,6 +180,12 @@ read_file(Path) ->
 
 write_file(Path, Data) ->
     case file:write_file(Path, Data) of
+        ok -> {ok, nil};
+        {error, Reason} -> {error, atom_to_binary(Reason, utf8)}
+    end.
+
+delete_file(Path) ->
+    case file:delete(Path) of
         ok -> {ok, nil};
         {error, Reason} -> {error, atom_to_binary(Reason, utf8)}
     end.

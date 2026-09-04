@@ -3,12 +3,18 @@
 //// Subcommands:
 ////
 ////   eitb version                                   library + binding versions
-////   eitb hashes                                    shipped hash primitive roster
+////   eitb profiles                                  registered profile catalogue
+////   eitb inspect <blob-hex>                        profile record of a blob
 ////   eitb encrypt <profile> <in-file> <out-file>    Single Message encrypt
 ////   eitb decrypt <profile> <blob-hex> <in-file> <out-file>
 ////
-//// `encrypt` prints the session blob to stderr as hex; feed that
-//// hex back to `decrypt` on the receiving side.
+//// `encrypt` prints the session blob (`pipeline.save`) to stderr as
+//// hex; feed that hex back to `decrypt` on the receiving side, which
+//// reopens the session with `pipeline.load` (the profile argument
+//// only routes Single Message versus streaming). `profiles` lists
+//// the registered profile catalogue one name per line; the profiles
+//// that carry a cipher surface are the ones `encrypt` / `decrypt`
+//// accept.
 ////
 //// The source lives in eitb/ with a symlink in dev/ so the build
 //// tool picks it up as a dev-profile module; the eitb/eitb bash
@@ -22,7 +28,7 @@ import itb/pipeline.{type Pipeline}
 import itb/stream
 import itb_gleam.{type ItbError, ItbError}
 
-const eitb_gleam_version = "0.3.5"
+const eitb_gleam_version = "0.4.1"
 
 @external(erlang, "itb_gleam_ffi", "argv")
 fn argv() -> List(String)
@@ -122,7 +128,8 @@ pub fn main() {
 fn dispatch(args: List(String)) -> Int {
   case args {
     ["version"] -> cmd_version()
-    ["hashes"] -> cmd_hashes()
+    ["profiles"] -> cmd_profiles()
+    ["inspect", blob_hex] -> cmd_inspect(blob_hex)
     ["encrypt", profile, in_file, out_file] ->
       cmd_encrypt(profile, in_file, out_file)
     ["decrypt", profile, blob_hex, in_file, out_file] ->
@@ -134,11 +141,34 @@ fn dispatch(args: List(String)) -> Int {
 fn usage() -> Int {
   io.println_error(
     "usage: eitb version\n"
-    <> "       eitb hashes\n"
+    <> "       eitb profiles\n"
+    <> "       eitb inspect <blob-hex>\n"
     <> "       eitb encrypt <profile> <in-file> <out-file>\n"
     <> "       eitb decrypt <profile> <blob-hex> <in-file> <out-file>",
   )
   2
+}
+
+fn cmd_profiles() -> Int {
+  list.each(itb_gleam.profiles(), io.println)
+  0
+}
+
+fn cmd_inspect(blob_hex: String) -> Int {
+  case hex_decode(blob_hex) {
+    Error(Nil) -> {
+      io.println_error("eitb: invalid blob hex")
+      1
+    }
+    Ok(blob) ->
+      case itb_gleam.inspect(blob) {
+        Error(error) -> fail("inspect", error)
+        Ok(record) -> {
+          io.println(record)
+          0
+        }
+      }
+  }
 }
 
 fn fail(what: String, error: ItbError) -> Int {
@@ -166,22 +196,6 @@ fn cmd_version() -> Int {
     }
     Error(error) -> fail("version", error)
   }
-}
-
-fn cmd_hashes() -> Int {
-  itb_gleam.hashes()
-  |> list.index_map(fn(hash, index) {
-    let #(name, width) = hash
-    io.println(
-      string.pad_start(int.to_string(index), 2, " ")
-      <> "  "
-      <> string.pad_end(name, 12, " ")
-      <> " "
-      <> int.to_string(width)
-      <> " bits",
-    )
-  })
-  0
 }
 
 fn cmd_encrypt(profile: String, in_file: String, out_file: String) -> Int {
@@ -226,7 +240,7 @@ fn encrypt_with(
           1
         }
         Ok(Nil) -> {
-          let assert Ok(blob) = pipeline.blob(pipe)
+          let assert Ok(blob) = pipeline.save(pipe)
           io.println_error(hex_encode(blob))
           io.println(
             "encrypted "
@@ -276,8 +290,8 @@ fn decrypt_with(
   in_file: String,
   out_file: String,
 ) -> Int {
-  case pipeline.open(profile, blob, []) {
-    Error(error) -> fail("open", error)
+  case pipeline.load(blob) {
+    Error(error) -> fail("load", error)
     Ok(pipe) -> {
       let result = case is_streaming_profile(profile) {
         True -> stream_one_shot(pipe, StreamDecrypt, wire)

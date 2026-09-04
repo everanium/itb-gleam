@@ -19,9 +19,8 @@
 ////     import itb/pipeline
 ////
 ////     let assert Ok(sender) = pipeline.new("singlemsg-triple-mac-v1", [])
-////     let assert Ok(blob) = pipeline.blob(sender)
-////     let assert Ok(receiver) =
-////       pipeline.open("singlemsg-triple-mac-v1", blob, [])
+////     let assert Ok(blob) = pipeline.save(sender)
+////     let assert Ok(receiver) = pipeline.load(blob)
 ////     let assert Ok(wire) = pipeline.encrypt_message(sender, <<"hi":utf8>>)
 ////     let assert Ok(back) = pipeline.decrypt_message(receiver, wire)
 ////     pipeline.free(receiver)
@@ -47,20 +46,37 @@ pub type ItbError {
 pub type Opts =
   List(#(String, String))
 
-/// The libitb library version string (e.g. "0.3.5").
+/// The libitb library version string (e.g. "0.4.1").
 @external(erlang, "itb_gleam_ffi", "version")
 pub fn version() -> Result(String, ItbError)
 
-/// The shipped hash primitive roster as `#(name, width_bits)` pairs
-/// in canonical registry order.
-@external(erlang, "itb_gleam_ffi", "hashes")
-pub fn hashes() -> List(#(String, Int))
+/// Decodes the blob's embedded profile record without opening a
+/// Pipeline and returns it as the JSON text libitb emits (keys
+/// `name`, `mode`, `width`, `hash`, `hashes`, `keybits`, `mac`,
+/// `tagstub`, `chunk`, `wrapper`, `outer`, `parallax`, `palette`,
+/// `segment`; absent keys are optional fields at their zero value).
+/// No registry read, no primitive probe.
+@external(erlang, "itb_gleam_ffi", "inspect")
+pub fn inspect(blob: BitArray) -> Result(String, ItbError)
 
-/// Registers a user-defined Triple profile under `name`; the opts
-/// follow the register-profile grammar validated by Go. A duplicate
-/// name fails with status "profile_exists".
-@external(erlang, "itb_gleam_ffi", "register_profile")
-pub fn register_profile(name: String, opts: Opts) -> Result(Nil, ItbError)
+/// Registers a profile record under `name` so subsequent
+/// `pipeline.new` / `lookup` calls resolve it. `profile_json` is the
+/// record as JSON text — the shape `inspect` / `lookup` return; a
+/// `name` key inside it, if present, must be empty or equal to
+/// `name`. Validation is performed by libitb; a duplicate name fails
+/// with status "profile_exists".
+@external(erlang, "itb_gleam_ffi", "register")
+pub fn register(name: String, profile_json: String) -> Result(Nil, ItbError)
+
+/// The profile record registered under `name` (a shipped catalogue
+/// entry or a prior `register`) as JSON text. An unknown name fails
+/// with status "unknown_profile".
+@external(erlang, "itb_gleam_ffi", "lookup")
+pub fn lookup(name: String) -> Result(String, ItbError)
+
+/// The sorted list of every registered profile name.
+@external(erlang, "itb_gleam_ffi", "profiles")
+pub fn profiles() -> List(String)
 
 /// The Go-side diagnostic recorded by the most recent failing libitb
 /// call (process-global last-write-wins; "" when none). The error
