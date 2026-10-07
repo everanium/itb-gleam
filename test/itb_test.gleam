@@ -39,6 +39,11 @@ pub fn version_test() {
   assert version != ""
 }
 
+pub fn drbg_auto_tier_test() {
+  let assert Ok(tier) = itb3_gleam.drbg_auto_tier()
+  assert tier == "aes-256-ctr" || tier == "chacha20"
+}
+
 pub fn runtime_knobs_test() {
   // Negative values query without changing; the return is the
   // previous setting.
@@ -374,4 +379,77 @@ pub fn freed_stream_test() {
   let assert Error(ItbError("bad_handle", _)) = stream.finish(session)
   let assert Error(ItbError("bad_handle", _)) = stream.read(session, 16)
   pipeline.free(pipe)
+}
+
+// ------------------------------------------------------------------
+// DRBG fill primitive
+// ------------------------------------------------------------------
+
+type JsonMap
+
+type JsonIodata
+
+@external(erlang, "json", "decode")
+fn json_decode(text: String) -> JsonMap
+
+@external(erlang, "maps", "without")
+fn map_without(keys: List(String), map: JsonMap) -> JsonMap
+
+@external(erlang, "json", "encode")
+fn json_encode(map: JsonMap) -> JsonIodata
+
+@external(erlang, "erlang", "iolist_to_binary")
+fn iodata_to_string(data: JsonIodata) -> String
+
+pub fn drbg_round_trip_test() {
+  // The drbg opts key selects the fill primitive: the session round
+  // trips through a loaded blob and inspect reports the key.
+  list.each(["csprng", "aesitb128"], fn(drbg) {
+    let assert Ok(sender) =
+      pipeline.new("singlemsg-triple-mac-v1", [#("drbg", drbg)])
+    let assert Ok(blob) = pipeline.save(sender)
+    let assert Ok(receiver) = pipeline.load(blob)
+    let plain = <<"drbg round-trip payload":utf8>>
+    let assert Ok(wire) = pipeline.encrypt_message(receiver, plain)
+    assert pipeline.decrypt_message(sender, wire) == Ok(plain)
+    let assert Ok(record) = itb3_gleam.inspect(blob)
+    assert string.contains(record, "\"drbg\":\"" <> drbg <> "\"")
+    pipeline.free(receiver)
+    pipeline.free(sender)
+  })
+}
+
+pub fn drbg_unknown_name_test() {
+  let assert Error(ItbError("recipe_primitive_unknown", detail)) =
+    pipeline.new("singlemsg-triple-mac-v1", [#("drbg", "nope")])
+  assert string.contains(detail, "nope")
+}
+
+pub fn drbg_absent_by_default_test() {
+  let assert Ok(pipe) = pipeline.new("singlemsg-triple-mac-v1", [])
+  let assert Ok(blob) = pipeline.save(pipe)
+  pipeline.free(pipe)
+  let assert Ok(record) = itb3_gleam.inspect(blob)
+  assert !string.contains(record, "\"drbg\":")
+  let assert Ok(looked) = itb3_gleam.lookup("singlemsg-triple-mac-v1")
+  assert !string.contains(looked, "\"drbg\":")
+}
+
+pub fn drbg_register_copy_keeps_key_test() {
+  // An inspected record with the inspection-only fields dropped
+  // re-registers and keeps the drbg key.
+  let assert Ok(pipe) =
+    pipeline.new("singlemsg-triple-mac-v1", [#("drbg", "csprng")])
+  let assert Ok(blob) = pipeline.save(pipe)
+  pipeline.free(pipe)
+  let assert Ok(record) = itb3_gleam.inspect(blob)
+  let copy =
+    record
+    |> json_decode
+    |> map_without(["name", "nonce_bits", "barrier_fill", "container_mode"], _)
+    |> json_encode
+    |> iodata_to_string
+  let assert Ok(Nil) = itb3_gleam.register("gleam-binding-test-drbg-copy", copy)
+  let assert Ok(looked) = itb3_gleam.lookup("gleam-binding-test-drbg-copy")
+  assert string.contains(looked, "\"drbg\":\"csprng\"")
 }

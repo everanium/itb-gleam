@@ -1,4 +1,4 @@
-//// itb3/pipeline — Triple Pipeline sessions: lifecycle plus Single
+//// Triple Pipeline sessions: lifecycle plus Single
 //// Message encrypt / decrypt.
 ////
 //// A `Pipeline` is an opaque NIF resource owned by the Erlang

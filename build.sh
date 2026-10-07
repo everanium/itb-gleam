@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 #
-# build.sh -- one-step build for the Gleam binding. Chains the
-# Erlang binding's build.sh (libitb3.so + the C binding's static
-# archive + the NIF shim) and then compiles the Gleam project; the
-# Erlang application is discovered on the code path at runtime by
-# the FFI adapter (rebar3 applications are not Gleam packages, so it
-# cannot be a gleam.toml dependency). Prerequisites (Go, a C11
-# compiler, GNU make, Erlang/OTP 27+, rebar3, Gleam 1.11+) must be
-# installed separately; see README.md "Prerequisites".
+# One-step build for the Gleam binding. Chains the Erlang binding's
+# build.sh (libitb3.so + the C binding's static archive + the NIF shim)
+# and then compiles the Gleam project, the eitb demonstrator and the
+# loop stress harness together; the Erlang application is
+# discovered on the code path at runtime by the FFI adapter (rebar3
+# applications are not Gleam packages, so it cannot be a gleam.toml
+# dependency). Prerequisites (Go, a C11 compiler, GNU make, Erlang/OTP
+# 27+, rebar3, Gleam 1.11+) must be installed separately; see README.md
+# "Prerequisites".
 #
 # The build starts by removing every artefact this binding owns, so no
 # output of an earlier build can survive into this one and mask a
@@ -43,9 +44,9 @@ esac
 # never name a tracked one. Every candidate is canonicalised and refused
 # unless it resolves inside this binding's own directory.
 #
-# dev/ holds tracked symlinks to the bench and eitb sources, which is
-# how `gleam build` reaches them; neither list names it. The Erlang
-# backend under ../erlang is depended on, never removed from here: the
+# dev/ holds tracked symlinks to the bench, eitb and loop sources,
+# which is how `gleam build` reaches them; neither list names it. The
+# Erlang backend under ../erlang is depended on, never removed here: the
 # chained build.sh below owns that tree's wipe.
 # ---------------------------------------------------------------------
 ARTEFACTS=(
@@ -107,9 +108,9 @@ fi
 ../erlang/build.sh "$@"
 
 # `gleam build` compiles src/ and the dev/ modules together, so the
-# eitb demonstrator's beam lands in build/dev/erlang/libitb3_gleam/ebin
-# alongside the library. Running `version` proves the launcher resolves
-# that freshly-compiled beam.
+# eitb demonstrator's and the loop utility's beams land in
+# build/dev/erlang/libitb3_gleam/ebin alongside the library. Running
+# `version` proves the launcher resolves that freshly-compiled beam.
 echo "==> gleam build"
 gleam build
 

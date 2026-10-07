@@ -1,4 +1,4 @@
-//// itb_bench — Message + Stream throughput micro-benchmarks.
+//// Message + Stream throughput micro-benchmarks.
 ////
 //// Shapes:
 ////   message          encrypt_message throughput vs plaintext size
@@ -6,7 +6,7 @@
 ////   stream_pump      incremental encrypt session throughput (begin ->
 ////                    write 1 MiB slices, draining the spool after each
 ////                    write -> finish -> drain until finished -> free)
-////   stream_one_shot  whole-buffer stream throughput (one
+////   stream_one_shot  one-shot stream throughput (one
 ////                    encrypt_stream_one_shot / decrypt_stream_one_shot
 ////                    call per iteration; the FFI whole-buffer fast
 ////                    path for callers holding the full payload)
@@ -62,9 +62,9 @@ const min_iters = 3
 const mib = 1_048_576
 
 pub fn main() {
-  // Bench-scale allocation churn leaks Go scratch heap unboundedly
-  // without a soft memory cap + aggressive GC; the return values
-  // report the previous settings, not an error.
+  // Bench-scale allocation churn grows the Go scratch heap
+  // unboundedly without a soft memory cap + aggressive GC; the
+  // return values report the previous settings, not an error.
   let _ = itb3_gleam.set_memory_limit(4_294_967_296)
   let _ = itb3_gleam.set_gc_percent(100)
 
@@ -127,7 +127,7 @@ fn bench_stream() -> Nil {
   pipeline.free(pipe)
 }
 
-// Whole-buffer stream: one FFI round trip through
+// One-shot stream: one FFI round trip through
 // encrypt_stream_one_shot / decrypt_stream_one_shot per iteration.
 fn bench_stream_one_shot() -> Nil {
   let profile = env("ITB_PROFILE", "streaming-noaead-triple-v1")
@@ -204,11 +204,8 @@ fn drain(session: stream.Session) -> Nil {
 // consumed, and drain_ready between feed slices can catch and drop
 // those chunks before drain_collect at end sees them.
 //
-// Go core wrapper-nonce batching fix (streams.go +
-// wrapper.NewWrapWriter) closes the earlier wrapper-nonce
-// split-write race so a single-chunk pump_all with plain feed would
-// now produce a wire whose nonce is not stranded, but drain_ready's
-// byte-dropping behaviour remains fundamentally incompatible with
+// Single-chunk plain feed produces a wire whose nonce is not stranded,
+// but drain_ready's byte-dropping behaviour remains incompatible with
 // wire collection across chunk boundaries.
 fn pump_all(pipe: Pipeline, plain: BitArray) -> BitArray {
   let assert Ok(session) = stream.encrypt(pipe)

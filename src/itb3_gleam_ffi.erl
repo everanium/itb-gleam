@@ -1,4 +1,4 @@
-%% itb3_gleam_ffi — FFI adapter for the ITB Gleam binding.
+%% FFI adapter for the ITB Gleam binding.
 %%
 %% Normalises the Erlang binding's return shapes into the tuple
 %% layouts Gleam's type system expects, and lazily puts the Erlang
@@ -30,9 +30,10 @@
          encrypt_stream_one_shot/2, decrypt_stream_one_shot/2,
          encrypt_stream/1, decrypt_stream/1,
          stream_write/2, stream_end/1, stream_read/2, stream_free/1,
-         inspect/1, register/2, lookup/1, profiles/0,
-         version/0, last_error/0,
-         set_memory_limit/1, set_gc_percent/1,
+         inspect/1, register/2, lookup/1, profiles/0, hash_names/0,
+         version/0, drbg_auto_tier/0, last_error/0, status_code/1,
+         set_memory_limit/1, set_gc_percent/1, set_gomaxprocs/1,
+         write_heap_profile/1, pool_stats_len/0, pool_stats/0,
          env/2, now_us/0, read_file/1, write_file/2, delete_file/1,
          hex_encode/1, hex_decode/1, argv/0, flip_byte/2]).
 
@@ -137,6 +138,10 @@ profiles() ->
     ok = ensure_itb(),
     itb3:profiles().
 
+hash_names() ->
+    ok = ensure_itb(),
+    itb3:hash_names().
+
 json_text({ok, Record}) -> {ok, iolist_to_binary(json:encode(Record))};
 json_text({error, Reason}) -> {error, err(Reason)}.
 
@@ -144,9 +149,26 @@ version() ->
     ok = ensure_itb(),
     norm(itb3:version()).
 
+drbg_auto_tier() ->
+    ok = ensure_itb(),
+    norm(itb3:drbg_auto_tier()).
+
 last_error() ->
     ok = ensure_itb(),
     itb3:last_error().
+
+%% The status crosses the Gleam boundary as a string, so it is mapped
+%% back onto the atom the Erlang binding's table is keyed by. A string
+%% that names no existing atom cannot be a status this library ever
+%% returned, and resolves to the internal-error code.
+status_code(Status) ->
+    ok = ensure_itb(),
+    itb3:status_code(status_atom(Status)).
+
+status_atom(Status) ->
+    try binary_to_existing_atom(Status, utf8)
+    catch error:badarg -> internal
+    end.
 
 set_memory_limit(Bytes) ->
     ok = ensure_itb(),
@@ -155,6 +177,22 @@ set_memory_limit(Bytes) ->
 set_gc_percent(Pct) ->
     ok = ensure_itb(),
     itb3:set_gc_percent(Pct).
+
+set_gomaxprocs(N) ->
+    ok = ensure_itb(),
+    itb3:set_gomaxprocs(N).
+
+write_heap_profile(Path) ->
+    ok = ensure_itb(),
+    norm(itb3:write_heap_profile(Path)).
+
+pool_stats_len() ->
+    ok = ensure_itb(),
+    itb3:pool_stats_len().
+
+pool_stats() ->
+    ok = ensure_itb(),
+    norm(itb3:pool_stats()).
 
 %% ------------------------------------------------------------------
 %% Utility helpers for the bench / eitb / test modules

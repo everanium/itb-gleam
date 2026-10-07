@@ -1,4 +1,4 @@
-//// itb3/stream — incremental stream sessions over a Pipeline.
+//// Incremental stream sessions over a Pipeline.
 ////
 //// A `Session` wraps the backend's NIF stream resource together
 //// with its parent `Pipeline` value, so a live session keeps the

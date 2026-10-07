@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#
+# Launcher for the loop stress harness of the Gleam binding: runs the
+# compiled dev-profile modules directly under the emulator with the
+# build's code paths, preserving the caller's working directory so
+# relative file arguments resolve as typed. build.sh compiles the
+# binding and the utility; this script builds nothing.
+#
+# The emulator is started with the break handler off and the utility
+# is run in the background rather than exec'd, so that an interrupt
+# can be translated here into the termination signal the utility does
+# receive: the emulator owns SIGINT below the signal server and never
+# lets BEAM code see it, while SIGTERM reaches the utility's own
+# handler and starts its graceful stop. The child's exit status is
+# passed through unchanged.
+#
+# Usage:
+#   ./loop/loop --duration 2m --shape both
+
+set -eu
+set -o pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [ ! -f "$ROOT/build/dev/erlang/libitb3_gleam/ebin/loop_main.beam" ]; then
+    echo "loop: utility not compiled, run ./build.sh first: $ROOT/build/dev" >&2
+    exit 1
+fi
+
+PA=()
+for ebin in "$ROOT"/build/dev/erlang/*/ebin; do
+    PA+=(-pa "$ebin")
+done
+
+# -noshell keeps the emulator's banner and line editor off stdout and
+# -boot no_dot_erlang skips the user's ~/.erlang, so the utility owns
+# every byte the process prints; +Bi leaves the interrupt to the trap
+# below. loop_main:main/0 reads the plain arguments after -extra and
+# halts with the run's exit code.
+erl +Bi -noshell -boot no_dot_erlang "${PA[@]}" \
+    -eval 'loop_main:main()' -extra "$@" &
+child=$!
+
+trap 'kill -TERM "$child" 2>/dev/null || true' INT TERM
+
+set +e
+wait "$child"
+rc=$?
+# A trapped signal makes the first wait return 128 + signal number
+# rather than the child's status; waiting again yields the status the
+# child actually exited with.
+if [ "$rc" -gt 128 ]; then
+    wait "$child"
+    rc=$?
+fi
+exit "$rc"
