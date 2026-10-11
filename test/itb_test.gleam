@@ -453,3 +453,23 @@ pub fn drbg_register_copy_keeps_key_test() {
   let assert Ok(looked) = itb3_gleam.lookup("gleam-binding-test-drbg-copy")
   assert string.contains(looked, "\"drbg\":\"csprng\"")
 }
+
+// ------------------------------------------------------------------
+// Container mode option
+// ------------------------------------------------------------------
+
+pub fn container_mode_opts_test() {
+  let assert Ok(p1) =
+    pipeline.new("singlemsg-triple-mac-v1", [#("mode", "1")])
+  let assert Ok(p2) =
+    pipeline.new("singlemsg-triple-mac-v1", [#("mode", "2")])
+  let assert Ok(b1) = pipeline.save(p1)
+  let assert Ok(b2) = pipeline.save(p2)
+  pipeline.free(p1)
+  pipeline.free(p2)
+  let assert Ok(rec1) = itb3_gleam.inspect(b1)
+  let assert Ok(rec2) = itb3_gleam.inspect(b2)
+  assert string.contains(rec1, "\"container_mode\":1")
+  assert string.contains(rec2, "\"container_mode\":2")
+}
+

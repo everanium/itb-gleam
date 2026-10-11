@@ -98,14 +98,18 @@ pub fn round_trip() {
 // let assert Ok(receiver) = pipeline.load_f("session.blob")
 ```
 
-Opts override the profile default at `pipeline.new` (chunk size,
-outer cipher, parallax on/off, wrapper on/off, MAC name, palette,
-worker cap) as a list of `#(String, String)` pairs. The resolved
-shape is written into the blob, so the receiver loads it with no
-opts of its own:
+Opts override the profile default at `pipeline.new` (container floor
+sizing mode, chunk size, outer cipher, parallax on/off, wrapper on/off,
+MAC name, palette, worker cap) as a list of `#(String, String)` pairs.
+The resolved shape is written into the blob, so the receiver loads it
+with no opts of its own:
 
 ```gleam
-let opts = [#("chunkSize", "65536"), #("withWrapper", "false")]
+let opts = [
+  #("mode", "2"),
+  #("chunkSize", "65536"),
+  #("withWrapper", "false"),
+]
 let assert Ok(sender) = pipeline.new("singlemsg-triple-mac-v1", opts)
 let assert Ok(blob) = pipeline.save(sender)
 let assert Ok(receiver) = pipeline.load(blob)

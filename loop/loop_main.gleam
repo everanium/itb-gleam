@@ -961,6 +961,7 @@ fn build_pipeline(
   profile: String,
 ) -> Result(#(Pipeline, BitArray), Nil) {
   let base = [
+    #("mode", int.to_string(cfg.blob_mode)),
     #("innerHash", cfg.hash),
     #("macName", cfg.mac),
     #("withParallax", loop_types.bool_text(cfg.parallax)),
@@ -1007,93 +1008,13 @@ fn build_pipeline(
               pipeline.free(pipe)
               Error(Nil)
             }
-            Ok(blob) -> apply_blob_mode(cfg.blob_mode, profile, pipe, blob)
-          }
-      }
-    }
-  }
-}
-
-// The sizing mode is not an opts knob: under --blob-mode 2 the Init
-// blob is edited and the pipeline reopened from it, so the retained
-// blob (the one blob-cycle reopens from) carries the edited mode.
-fn apply_blob_mode(
-  mode: Int,
-  profile: String,
-  pipe: Pipeline,
-  blob: BitArray,
-) -> Result(#(Pipeline, BitArray), Nil) {
-  case mode {
-    1 -> {
-      log_pipeline_initialised(profile, blob)
-      Ok(#(pipe, blob))
-    }
-    _ -> {
-      pipeline.free(pipe)
-      case edit_inner_blob_mode(blob, mode) {
-        Error(Nil) -> {
-          loop_types.err("rewrite blob mode: inner blob mode field not found")
-          Error(Nil)
-        }
-        Ok(edited) ->
-          case pipeline.load(edited) {
-            Error(ItbError(status, detail)) -> {
-              loop_types.err(
-                "reload Mode 2 blob: " <> loop_types.status_text(status, detail),
-              )
-              Error(Nil)
-            }
-            Ok(reloaded) -> {
-              log_pipeline_initialised(profile, edited)
-              Ok(#(reloaded, edited))
+            Ok(blob) -> {
+              log_pipeline_initialised(profile, blob)
+              Ok(#(pipe, blob))
             }
           }
       }
     }
-  }
-}
-
-// Gleam-specific. This binding pins no JSON encoder, so the inner
-// blob's integer "mode" (1 = per-region, 2 = per-container) is set by
-// a targeted edit, the same one the C reference makes: the search
-// starts at the inner blob ("ib"), because the profile record "p"
-// carries its own string "mode", and nothing before "ib" is touched.
-// Both shipped modes are one digit wide, so the blob length does not
-// change.
-fn edit_inner_blob_mode(blob: BitArray, mode: Int) -> Result(BitArray, Nil) {
-  let ib_key = "\"ib\":{"
-  let mode_key = "\"mode\":"
-  case bit_array.to_string(blob) {
-    Error(Nil) -> Error(Nil)
-    Ok(text) ->
-      case string.split_once(text, ib_key) {
-        Error(Nil) -> Error(Nil)
-        Ok(#(before, inner)) ->
-          case string.split_once(inner, mode_key) {
-            Error(Nil) -> Error(Nil)
-            Ok(#(mid, rest)) ->
-              case string.pop_grapheme(rest) {
-                Ok(#(digit, tail)) if digit == "1" || digit == "2" ->
-                  case string.pop_grapheme(tail) {
-                    Ok(#(next, _)) ->
-                      case int.parse(next) {
-                        Ok(_) -> Error(Nil)
-                        Error(Nil) ->
-                          Ok(bit_array.from_string(
-                            before
-                            <> ib_key
-                            <> mid
-                            <> mode_key
-                            <> int.to_string(mode)
-                            <> tail,
-                          ))
-                      }
-                    Error(Nil) -> Error(Nil)
-                  }
-                _ -> Error(Nil)
-              }
-          }
-      }
   }
 }
 
