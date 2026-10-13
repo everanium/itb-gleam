@@ -29,7 +29,7 @@ import itb3/pipeline.{type Pipeline}
 import itb3/stream
 import itb3_gleam.{type ItbError, ItbError}
 
-const eitb_gleam_version = "0.5.6"
+const eitb_gleam_version = "0.6.1"
 
 @external(erlang, "itb3_gleam_ffi", "argv")
 fn argv() -> List(String)
