@@ -24,7 +24,7 @@
 
 -module(itb3_gleam_ffi).
 
--export([init/2, load/3, load_f/3, save/1, save_f/2, max_workers/2,
+-export([init/2, init_keys/3, load/3, load_f/3, save/1, save_f/2, max_workers/2,
          rekey/3, free/1,
          encrypt_message/2, decrypt_message/2,
          encrypt_stream_one_shot/2, decrypt_stream_one_shot/2,
@@ -44,6 +44,10 @@
 init(Profile, Opts) ->
     ok = ensure_itb(),
     norm(itb3:init(Profile, Opts)).
+
+init_keys(Profile, Opts, Masters) ->
+    ok = ensure_itb(),
+    norm(itb3:init_keys(Profile, Opts, Masters)).
 
 load(Blob, PermMaster, WrapMaster) ->
     ok = ensure_itb(),

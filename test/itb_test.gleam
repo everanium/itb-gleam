@@ -79,6 +79,35 @@ pub fn save_load_round_trip_test() {
   pipeline.free(sender)
 }
 
+pub fn new_keys_test() {
+  let masters =
+    list.map([1, 2, 3, 4, 5, 6, 7, 8], fn(i) {
+      let b = i * 0x11
+      <<b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b,
+        b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b>>
+    })
+  let assert Ok(p1) = pipeline.new_keys("singlemsg-triple-mac-v1", [], masters)
+  let assert Ok(p2) = pipeline.init_keys("singlemsg-triple-mac-v1", [], masters)
+  let assert Ok(b1) = pipeline.save(p1)
+  let assert Ok(b2) = pipeline.save(p2)
+  assert b1 == b2
+  let plain = <<"new_keys determinism payload":utf8>>
+  let assert Ok(wire) = pipeline.encrypt_message(p1, plain)
+  assert pipeline.decrypt_message(p2, wire) == Ok(plain)
+  pipeline.free(p2)
+  pipeline.free(p1)
+
+  let assert [k0, _, ..rest] = masters
+  let dup = [k0, k0, ..rest]
+  let assert Error(ItbError("bad_input", _)) =
+    pipeline.new_keys("singlemsg-triple-mac-v1", [], dup)
+
+  let assert [_, ..tail] = masters
+  let short = [<<1, 2, 3, 4, 5, 6, 7, 8>>, ..tail]
+  let assert Error(ItbError("bad_input", _)) =
+    pipeline.new_keys("singlemsg-triple-mac-v1", [], short)
+}
+
 pub fn save_f_load_f_round_trip_test() {
   let path = "/tmp/itb-gleam-persist-" <> int.to_string(now_us()) <> ".blob"
   let assert Ok(sender) = pipeline.new("singlemsg-triple-mac-v1", [])

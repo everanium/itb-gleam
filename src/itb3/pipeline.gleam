@@ -21,6 +21,26 @@ pub type Pipeline
 @external(erlang, "itb3_gleam_ffi", "init")
 pub fn new(profile: String, opts: Opts) -> Result(Pipeline, ItbError)
 
+/// Deterministically constructs a Pipeline from eight caller-supplied
+/// master keys (one per canonical seed slot 0..7) against the named
+/// profile and options. The eight master keys must come from
+/// independent entropy or key-agreement sources; never derive all
+/// eight keys from a single secret or a single KDF parent key.
+@external(erlang, "itb3_gleam_ffi", "init_keys")
+pub fn new_keys(
+  profile: String,
+  opts: Opts,
+  masters: List(BitArray),
+) -> Result(Pipeline, ItbError)
+
+/// Alias for `new_keys`.
+@external(erlang, "itb3_gleam_ffi", "init_keys")
+pub fn init_keys(
+  profile: String,
+  opts: Opts,
+  masters: List(BitArray),
+) -> Result(Pipeline, ItbError)
+
 /// Reconstructs a Pipeline from a blob produced by `save` / `rekey`,
 /// using the blob-embedded masters. The blob's embedded profile
 /// record is the sole structural source — no profile name, no opts.

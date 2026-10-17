@@ -18,7 +18,7 @@ profile-name is an opaque string passed through to Go for
 validation; the binding carries no ITB construction logic. The
 public surface is `itb3_gleam` (version, the profile catalogue
 `inspect` / `register` / `lookup` / `profiles`, Go runtime knobs),
-`itb3/pipeline` (`new` / `load` / `load_f` / `save` /
+`itb3/pipeline` (`new` / `new_keys` / `load` / `load_f` / `save` /
 `save_f` / `rekey` / `max_workers` / `free`, Single Message encrypt
 / decrypt, one-shot stream encrypt / decrypt), and
 `itb3/stream` (incremental sessions with `write` / `finish` /
@@ -114,6 +114,8 @@ let assert Ok(sender) = pipeline.new("singlemsg-triple-mac-v1", opts)
 let assert Ok(blob) = pipeline.save(sender)
 let assert Ok(receiver) = pipeline.load(blob)
 ```
+
+`pipeline.new_keys` constructs a `Pipeline` deterministically from eight caller-supplied master keys (one per seed slot `0..7`) via per-slot KDF, so two peers holding the same eight master keys derive identical `Pipeline` instances without exchanging a session blob. The eight master keys must come from independent entropy or key-agreement sources — never derive all eight keys from a single secret or a single KDF parent key.
 
 `pipeline.rekey` rotates the parallax + wrapper masters mid-session
 (the eight ITB seeds and MAC key are fixed for the session lifetime
