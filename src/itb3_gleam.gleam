@@ -46,7 +46,7 @@ pub type ItbError {
 pub type Opts =
   List(#(String, String))
 
-/// The libitb3 library version string (e.g. "0.7.3").
+/// The libitb3 library version string (e.g. "0.7.4").
 @external(erlang, "itb3_gleam_ffi", "version")
 pub fn version() -> Result(String, ItbError)
 
