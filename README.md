@@ -99,14 +99,16 @@ pub fn round_trip() {
 ```
 
 Opts override the profile default at `pipeline.new` (container floor
-sizing mode, chunk size, outer cipher, parallax on/off, wrapper on/off,
-MAC name, palette, worker cap) as a list of `#(String, String)` pairs.
-The resolved shape is written into the blob, so the receiver loads it
-with no opts of its own:
+sizing mode, interlock width `"48"` | `"168"`, chunk size, outer
+cipher, parallax on/off, wrapper on/off, MAC name, palette, worker
+cap) as a list of `#(String, String)` pairs. The resolved shape is
+written into the blob, so the receiver loads it with no opts of its
+own:
 
 ```gleam
 let opts = [
   #("mode", "2"),
+  #("interlock", "168"),
   #("chunkSize", "65536"),
   #("withWrapper", "false"),
 ]

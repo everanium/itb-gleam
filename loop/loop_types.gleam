@@ -76,6 +76,7 @@ pub type Config {
     chunk_size: Int,
     barrier_fill: Int,
     drbg: String,
+    interlock: String,
     gomaxprocs: Int,
     rekey_every: Int,
     blob_cycle_every: Int,

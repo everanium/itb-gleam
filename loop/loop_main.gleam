@@ -142,6 +142,12 @@ fn flag_table() -> List(Flag) {
     ),
     Flag("hash", "string", KString, "inner ITB hash primitive name"),
     Flag(
+      "interlock",
+      "string",
+      KString,
+      "Interlocked Barrier chunk width: 48 | 168; empty = profile default (48; 168 requires 512-bit hash)",
+    ),
+    Flag(
       "iterations",
       "int",
       KInt64,
@@ -231,6 +237,7 @@ fn defaults() -> Dict(String, Value) {
     #("gomaxprocs", VInt(0)),
     #("goroutines", VInt(3)),
     #("hash", VString("areion512")),
+    #("interlock", VString("")),
     #("iterations", VInt(0)),
     #("json-output", VBool(False)),
     #("key-bits", VInt(0)),
@@ -463,6 +470,7 @@ fn blank_config(duration_ns: Int) -> Config {
     chunk_size: 0,
     barrier_fill: 0,
     drbg: "",
+    interlock: "",
     gomaxprocs: 0,
     rekey_every: 0,
     blob_cycle_every: 0,
@@ -736,7 +744,7 @@ fn resolve_barrier_fill(
     // The DRBG name is validated by Init: the C ABI enumerates no DRBG
     // names.
     True ->
-      resolve_chunk_size(
+      resolve_interlock(
         v,
         Config(..cfg, barrier_fill: b, drbg: get_string(v, "drbg")),
       )
@@ -744,6 +752,24 @@ fn resolve_barrier_fill(
       loop_types.err(
         "--barrier-fill must be 1 | 2 | 4 | 8 | 16 | 32 (or 0 = profile default), got "
         <> int.to_string(b),
+      )
+      Error(Nil)
+    }
+  }
+}
+
+fn resolve_interlock(
+  v: Dict(String, Value),
+  cfg: Config,
+) -> Result(Config, Nil) {
+  let il = get_string(v, "interlock")
+  case il == "" || il == "48" || il == "168" {
+    True -> resolve_chunk_size(v, Config(..cfg, interlock: il))
+    False -> {
+      loop_types.err(
+        "--interlock must be 48 | 168 (or empty = profile default), got \""
+        <> il
+        <> "\"",
       )
       Error(Nil)
     }
@@ -970,6 +996,7 @@ fn build_pipeline(
     #("nonceBits", int.to_string(cfg.nonce_bits)),
     #("barrierFill", int.to_string(cfg.barrier_fill)),
     #("drbg", cfg.drbg),
+    #("interlock", cfg.interlock),
     #("chunkSize", int.to_string(cfg.chunk_size)),
   ]
   let extra = case cfg.profile {
@@ -1065,6 +1092,10 @@ fn log_pipeline_initialised(profile: String, blob: BitArray) -> Nil {
         <> case record_str(json, "drbg") {
           "-" -> ""
           drbg -> " drbg=" <> drbg
+        }
+        <> case record_str(json, "interlock") {
+          "-" -> ""
+          il -> " interlock=" <> il
         },
       )
   }
@@ -1201,6 +1232,10 @@ fn start_lines(cfg: Config) -> Nil {
     <> case cfg.drbg {
       "" -> ""
       d -> " drbg=" <> d
+    }
+    <> case cfg.interlock {
+      "" -> ""
+      il -> " interlock=" <> il
     },
   )
   loop_types.log(

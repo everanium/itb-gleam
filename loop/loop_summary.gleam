@@ -364,6 +364,8 @@ fn json(cfg: Config, f: Figures) -> Nil {
     <> jstr(cfg.drbg)
     <> ",\"drbg_auto_tier\":"
     <> jstr(drbg_auto_tier())
+    <> ",\"interlock\":"
+    <> jstr(cfg.interlock)
     <> ",\"chunk_size_bytes\":"
     <> i(cfg.chunk_size)
     <> ",\"barrier_fill\":"

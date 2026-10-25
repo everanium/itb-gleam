@@ -502,3 +502,38 @@ pub fn container_mode_opts_test() {
   assert string.contains(rec2, "\"container_mode\":2")
 }
 
+// ------------------------------------------------------------------
+// Interlock width option
+// ------------------------------------------------------------------
+
+pub fn interlock_168_opts_test() {
+  let assert Ok(sender) =
+    pipeline.new("singlemsg-triple-mac-v1", [#("interlock", "168")])
+  let assert Ok(blob) = pipeline.save(sender)
+  let assert Ok(receiver) = pipeline.load(blob)
+  let plain = <<"interlock 168 round-trip payload">>
+  let assert Ok(wire) = pipeline.encrypt_message(sender, plain)
+  let assert Ok(back) = pipeline.decrypt_message(receiver, wire)
+  assert back == plain
+  let assert Ok(rec) = itb3_gleam.inspect(blob)
+  assert string.contains(rec, "\"interlock\":\"168\"")
+  pipeline.free(receiver)
+  pipeline.free(sender)
+
+  let assert Ok(def_pipe) =
+    pipeline.new("singlemsg-triple-mac-v1", [#("interlock", "48")])
+  let assert Ok(def_blob) = pipeline.save(def_pipe)
+  pipeline.free(def_pipe)
+  let assert Ok(def_rec) = itb3_gleam.inspect(def_blob)
+  assert !string.contains(def_rec, "\"interlock\":")
+
+  let assert Error(ItbError("bad_input", _)) =
+    pipeline.new("singlemsg-triple-mac-v1", [
+      #("innerHash", "blake3"),
+      #("interlock", "168"),
+    ])
+  let assert Error(ItbError("bad_input", _)) =
+    pipeline.new("singlemsg-triple-mac-v1", [#("interlock", "96")])
+}
+
+
