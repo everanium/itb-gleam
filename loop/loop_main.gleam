@@ -102,7 +102,7 @@ fn flag_table() -> List(Flag) {
       "blob-mode",
       "int",
       KInt,
-      "container floor sizing mode: 1 (per-region, default) | 2 (per-container)",
+      "container floor sizing mode: 1 (per-region, default) | 2 (per-container) | 3 (gauss-posit)",
     ),
     Flag(
       "chunk-size",
@@ -723,11 +723,11 @@ fn resolve_blob_mode(
   cfg: Config,
 ) -> Result(Config, Nil) {
   let m = get_int(v, "blob-mode")
-  case m == 1 || m == 2 {
+  case m == 1 || m == 2 || m == 3 {
     True -> resolve_barrier_fill(v, Config(..cfg, blob_mode: m))
     False -> {
       loop_types.err(
-        "--blob-mode must be 1 (per-region) | 2 (per-container), got "
+        "--blob-mode must be 1 (per-region) | 2 (per-container) | 3 (gauss-posit), got "
         <> int.to_string(m),
       )
       Error(Nil)
@@ -1087,6 +1087,7 @@ fn log_pipeline_initialised(profile: String, blob: BitArray) -> Nil {
         <> loop_types.on_off(record_bool(json, "wrapper"))
         <> case record_int(json, "container_mode") {
           2 -> " container-mode=2"
+          3 -> " container-mode=3"
           _ -> ""
         }
         <> case record_str(json, "drbg") {

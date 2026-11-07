@@ -492,14 +492,20 @@ pub fn container_mode_opts_test() {
     pipeline.new("singlemsg-triple-mac-v1", [#("mode", "1")])
   let assert Ok(p2) =
     pipeline.new("singlemsg-triple-mac-v1", [#("mode", "2")])
+  let assert Ok(p3) =
+    pipeline.new("singlemsg-triple-mac-v1", [#("mode", "3")])
   let assert Ok(b1) = pipeline.save(p1)
   let assert Ok(b2) = pipeline.save(p2)
+  let assert Ok(b3) = pipeline.save(p3)
   pipeline.free(p1)
   pipeline.free(p2)
+  pipeline.free(p3)
   let assert Ok(rec1) = itb3_gleam.inspect(b1)
   let assert Ok(rec2) = itb3_gleam.inspect(b2)
+  let assert Ok(rec3) = itb3_gleam.inspect(b3)
   assert string.contains(rec1, "\"container_mode\":1")
   assert string.contains(rec2, "\"container_mode\":2")
+  assert string.contains(rec3, "\"container_mode\":3")
 }
 
 // ------------------------------------------------------------------
